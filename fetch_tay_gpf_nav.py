@@ -98,7 +98,7 @@ def run_gpf_update():
 
     try:
         db_res = (
-            supabase.table("user_portfolios")
+            supabase.table("portfolio_plans")
             .select("*")
             .ilike("app_source", "GPF")
             .execute()
