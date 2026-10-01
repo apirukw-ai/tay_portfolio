@@ -1,0 +1,19 @@
+name: Update GPF NAV
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update-gpf:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: |
+          pip install requests pandas supabase beautifulsoup4
+          python fetch_tay_gpf_nav.py
