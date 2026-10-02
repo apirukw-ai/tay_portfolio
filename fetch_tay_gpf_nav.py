@@ -36,7 +36,9 @@ def get_gpf_nav_direct():
     try:
         gpf_url = "https://www.gpf.or.th/thai2019/About/main.php?page=memberfund&lang=th&size=n&pattern=n&menu=statistic"
         res = requests.get(gpf_url, headers=HEADERS, timeout=20)
-        res.encoding = "utf-8" if "utf-8" in res.text.lower() else "tis-620"
+        
+        # 🟢 แก้ไขเรื่อง Encoding: กำหนด Encoding ก่อนจะดึง res.text
+        res.encoding = res.apparent_encoding or "tis-620"
 
         soup = BeautifulSoup(res.text, "html.parser")
         for row in soup.find_all("tr"):
@@ -62,7 +64,7 @@ def get_gpf_nav_direct():
 
             nav_val = nav_candidates[0]
 
-            # จับคู่ตามคีย์เวิร์ด และ ID แผนลงทุน
+            # 🟢 จับคู่ตามคีย์เวิร์ด ID แผน และ Code สำรอง (GLOBAL, SET50, PROP)
             if "หุ้นต่างประเทศ" in text or "1788632129596" in text:
                 nav_map["1788632129596"] = nav_val
                 nav_map["แผนหุ้นต่างประเทศ"] = nav_val
@@ -74,8 +76,6 @@ def get_gpf_nav_direct():
                 nav_map["แผนอสังหาริมทรัพย์ไทย"] = nav_val
             elif "ตราสารหนี้" in text:
                 nav_map["แผนตราสารหนี้"] = nav_val
-            elif "หลักประกันประเดิม" in text or "แผนประเดิม" in text:
-                nav_map["แผนประเดิม"] = nav_val
 
     except Exception as e:
         print(f"⚠️ GPF Fetch Error: {e}")
@@ -119,14 +119,23 @@ def run_gpf_update():
             item.get("asset_name", "").strip() if item.get("asset_name") else ""
         )
         units = float(item.get("units") or 0)
+        old_nav_date = item.get("nav_date")
+        old_current_nav = item.get("current_nav")
 
         # ดึง NAV โดยลำดับการค้นหาจาก name ก่อน code
         latest_nav = gpf_nav_data.get(name) or gpf_nav_data.get(code)
 
         if latest_nav and latest_nav > 0:
             updated_item = item.copy()
+
+            # 🟢 หากวันที่เปลี่ยนเป็นวันใหม่ ให้สลับ current_nav เก่า ไปไว้ที่ prev_nav เพื่อใช้คิดกำไรรายวัน
+            prev_nav = item.get("prev_nav")
+            if old_nav_date and old_nav_date != today_date_str and old_current_nav:
+                prev_nav = old_current_nav
+
             updated_item.update(
                 {
+                    "prev_nav": round(float(prev_nav), 4) if prev_nav else round(latest_nav, 4),
                     "current_nav": round(latest_nav, 4),
                     "value": round(units * latest_nav, 4),
                     "nav_date": today_date_str,
